@@ -30,12 +30,14 @@ function useApi(toast) {
         return Promise.all([resps[0].json(), resps[1].ok ? resps[1].json() : { categories: [] }]);
       })
       .then(ds => {
-        setAccounts(ds[0].accounts);
-        if (ds[0].accounts.length) setAccId(ds[0].accounts[0].id);
-        setCats(ds[1].categories || []);
-        toast(`Connected \u2014 ${(ds[1].categories || []).length} categories`, 'success');
+        const accs = ds[0].accounts || [];
+        const categories = ds[1].categories || [];
+        setAccounts(accs);
+        if (accs.length) setAccId(accs[0].id);
+        setCats(categories);
+        if (accs.length) toast(`Connected \u2014 ${categories.length} categories`, 'success');
       })
-      .catch(e => toast('Failed: ' + e.message, 'error'));
+      .catch(() => {});
   }
 
   return { accounts, accId, setAccId, cats, parsers, loadAccounts };

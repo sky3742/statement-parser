@@ -8,7 +8,7 @@ from . import pdf
 from .api import MaybeAPI, APIError
 from .parsers import list_parsers
 
-api = MaybeAPI(config.API_URL, config.API_KEY)
+api = MaybeAPI(config.API_URL, config.API_KEY) if config.API_URL and config.API_KEY else None
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -57,7 +57,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def _get_parsers(self):
+        self._json(200, {'parsers': list_parsers()})
+
     def _get_accounts(self):
+        if not api:
+            self._json(200, {'accounts': []})
+            return
         try:
             accounts = api.get_accounts()
             self._json(200, {'accounts': accounts})
@@ -65,16 +71,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json(e.status, {'error': e.message})
 
     def _get_categories(self):
+        if not api:
+            self._json(200, {'categories': []})
+            return
         try:
             cats = api.get_categories()
             self._json(200, {'categories': cats})
         except APIError as e:
             self._json(e.status, {'error': e.message})
 
-    def _get_parsers(self):
-        self._json(200, {'parsers': list_parsers()})
-
     def _get_transactions(self):
+        if not api:
+            self._json(200, {'transactions': [], 'pagination': {}})
+            return
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
         account_id = params.get('account_id', [''])[0]
@@ -87,6 +96,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json(e.status, {'error': e.message})
 
     def _create_transaction(self):
+        if not api:
+            self._json(400, {'error': 'API not configured'})
+            return
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length)) if length else {}
         txn = body.get('transaction', {})
@@ -107,6 +119,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json(400, {'error': str(e)})
 
     def _create_transactions_batch(self):
+        if not api:
+            self._json(400, {'error': 'API not configured'})
+            return
         length = int(self.headers.get('Content-Length', 0))
         body = json.loads(self.rfile.read(length)) if length else {}
         transactions = body.get('transactions', [])
