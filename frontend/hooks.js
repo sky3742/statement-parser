@@ -211,7 +211,7 @@ function useTransactions(toast) {
   }
 
   return {
-    rows, visible, sorted, selIds, loading, posting, parser, setParser,
+    rows, visible, filtered, sorted, selIds, loading, posting, parser, setParser,
     sort, toggleSort,
     dateFrom, setDateFrom, dateTo, setDateTo,
     showCombine, setShowCombine,

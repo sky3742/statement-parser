@@ -73,7 +73,7 @@ function AccountSelect({ accounts, value, onChange, onRefresh }) {
       onChange: v => onChange(v.target.value),
       className: 'select select-sm bg-base-200 min-w-[200px]'
     },
-      accounts.map(a => e('option', { key: a.id, value: a.id }, `${a.name} (${a.balance})`))
+      accounts.map(a => e('option', { key: a.id, value: a.id }, a.name))
     ),
     e('button', { onClick: onRefresh, className: 'btn btn-ghost btn-sm btn-square' },
       e('svg', { xmlns: 'http://www.w3.org/2000/svg', className: 'w-4 h-4', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2 },
