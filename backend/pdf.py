@@ -1,4 +1,4 @@
-from .parsers import detect_parser, get_parser, list_parsers
+from .parsers import get_parser, list_parsers
 
 
 def extract(file_bytes, parser_name=None):
@@ -19,14 +19,38 @@ def extract(file_bytes, parser_name=None):
     if parser_name:
         parser = get_parser(parser_name)
         if not parser:
-            return {'error': f'Unknown parser: {parser_name}'}
+            return {'error': f'Unknown parser: {parser_name}. Available: {", ".join(p["name"] for p in list_parsers())}'}
     else:
-        parser = detect_parser(file_bytes)
+        parser = _detect(file_bytes)
         if not parser:
-            return {'error': 'Could not detect statement type. Supported: ' + ', '.join(p.label for p in list_parsers())}
+            return {'error': 'Could not detect statement type. Use ?parser= to specify. Available: ' + ', '.join(p['name'] for p in list_parsers())}
 
     try:
-        txns = parser.parse(file_bytes)
-        return txns
+        return parser.parse(file_bytes)
     except Exception as e:
         return {'error': str(e)}
+
+
+def _detect(file_bytes):
+    """Detect parser without importing all parsers at module level."""
+    import pdfplumber
+    import tempfile
+    import os
+
+    with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+    try:
+        with pdfplumber.open(tmp_path) as pdf:
+            text = ''
+            for page in pdf.pages[:2]:
+                t = page.extract_text()
+                if t:
+                    text += t
+            for p in list_parsers():
+                parser = get_parser(p['name'])
+                if parser and parser.detect(text):
+                    return parser
+    finally:
+        os.unlink(tmp_path)
+    return None

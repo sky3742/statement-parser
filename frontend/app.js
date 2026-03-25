@@ -3,6 +3,19 @@ function App() {
   const { accounts, accId, setAccId, cats, parsers, loadAccounts } = useApi(toast);
   const txn = useTransactions(toast);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handle(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'e') { e.preventDefault(); txn.exportCsv(); }
+        if (e.key === 'Enter' && accounts.length > 0) { e.preventDefault(); txn.postSelected(accId); }
+      }
+    }
+    document.addEventListener('keydown', handle);
+    return () => document.removeEventListener('keydown', handle);
+  }, [txn.exportCsv, txn.postSelected, accId, accounts.length]);
+
   return e('div', { className: 'max-w-5xl mx-auto px-4 py-6' },
     e('div', { className: 'flex items-center justify-between mb-6' },
       e('div', null,
@@ -26,9 +39,10 @@ function App() {
       }),
       e(StatsBar, { rows: txn.filtered }),
       e(Toolbar, {
-        selectedIds: txn.selIds, rows: txn.filtered, hasApi: accounts.length > 0,
+        selectedIds: txn.selIds, rows: txn.filtered, categories: cats, hasApi: accounts.length > 0,
         onCombine: () => txn.setShowCombine(true), onPost: () => txn.postSelected(accId),
-        onRemove: txn.removeSelected, onClear: txn.clearAll, onExport: txn.exportCsv
+        onRemove: txn.removeSelected, onClear: txn.clearAll, onExport: txn.exportCsv,
+        onBulkCategory: txn.bulkCategory
       }),
       e(TTable, {
         rows: txn.filtered, categories: cats, selectedIds: txn.selIds,

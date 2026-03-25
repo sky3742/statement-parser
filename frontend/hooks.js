@@ -127,6 +127,12 @@ function useTransactions(toast) {
     toast(`Combined ${sel.length} items as "${c.name}"`, 'success');
   }
 
+  // === Bulk category ===
+  function bulkCategory(catId) {
+    setRows(p => p.map(r => selIds.includes(r.id) ? { ...r, category: catId } : r));
+    toast(`Updated ${selIds.length} rows`, 'success');
+  }
+
   // === Post ===
   function postSelected(accId) {
     const sel = rows.filter(r => selIds.includes(r.id) && !r.posted);
@@ -194,6 +200,6 @@ function useTransactions(toast) {
     dateFrom, setDateFrom, dateTo, setDateTo,
     showCombine, setShowCombine,
     handleFiles, updateRow, toggleRow, toggleAll,
-    handleCombine, postSelected, exportCsv, clearAll, removeSelected
+    handleCombine, bulkCategory, postSelected, exportCsv, clearAll, removeSelected
   };
 }

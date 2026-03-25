@@ -166,7 +166,7 @@ function DateFilter({ dateFrom, dateTo, onFromChange, onToChange, onClear }) {
 }
 
 // === Toolbar ===
-function Toolbar({ selectedIds, rows, hasApi, onCombine, onPost, onRemove, onClear, onExport }) {
+function Toolbar({ selectedIds, rows, categories, hasApi, onCombine, onPost, onRemove, onClear, onExport, onBulkCategory }) {
   const sel = rows.filter(r => selectedIds.includes(r.id));
   const net = sel.reduce((s, r) => s + (r.type === 'expense' ? r.amount : -r.amount), 0);
   const hasSelection = selectedIds.length > 0;
@@ -182,6 +182,14 @@ function Toolbar({ selectedIds, rows, hasApi, onCombine, onPost, onRemove, onCle
     hasSelection && e('div', { className: 'flex items-center gap-2 animate-slide-down' },
       e('span', { className: 'badge badge-soft badge-sm' }, `${selectedIds.length} selected`),
       e('span', { className: `badge badge-sm ${net >= 0 ? 'badge-error' : 'badge-success'} badge-dash` }, `RM${net.toFixed(2)}`),
+      categories.length > 0 && e('select', {
+        onChange: ev => { if (ev.target.value) { onBulkCategory(ev.target.value); ev.target.value = ''; } },
+        className: 'select select-xs w-auto',
+        defaultValue: ''
+      },
+        e('option', { value: '', disabled: true }, 'Set category'),
+        categories.map(c => e('option', { key: c.id, value: c.id }, c.name))
+      ),
       e('button', { onClick: onRemove, className: 'btn btn-ghost btn-xs text-error' }, 'Remove'),
     ),
     e('button', { onClick: onCombine, disabled: selectedIds.length < 2, className: 'btn btn-outline btn-sm gap-2' },
