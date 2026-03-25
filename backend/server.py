@@ -39,6 +39,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split('?')[0]
         routes = {
             '/extract-pdf': self._handle_pdf,
+            '/convert-pdf': self._handle_pdf_csv,
             '/api/v1/transactions': self._create_transaction,
         }
         handler = routes.get(path)
@@ -110,6 +111,49 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json(200, {'message': 'Transaction deleted successfully'})
         except APIError as e:
             self._json(e.status, {'error': e.message})
+
+    def _handle_pdf_csv(self):
+        content_type = self.headers.get('Content-Type', '')
+        parsed = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed.query)
+        parser_name = params.get('parser', [None])[0]
+        all_txns = []
+
+        if 'multipart/form-data' in content_type:
+            form = cgi.FieldStorage(
+                fp=self.rfile,
+                headers=self.headers,
+                environ={'REQUEST_METHOD': 'POST', 'CONTENT_TYPE': content_type}
+            )
+            files = form['files'] if 'files' in form else []
+            if not isinstance(files, list):
+                files = [files]
+            for f in files:
+                if f.filename:
+                    data = f.file.read()
+                    result = pdf.extract(data, parser_name)
+                    if isinstance(result, list):
+                        all_txns.extend(result)
+        else:
+            length = int(self.headers.get('Content-Length', 0))
+            data = self.rfile.read(length)
+            result = pdf.extract(data, parser_name)
+            if isinstance(result, list):
+                all_txns.extend(result)
+
+        lines = ['Date,Amount,Type,Description']
+        for t in all_txns:
+            desc = (t.get('desc', '') or '').replace('"', '""')
+            lines.append(f"{t['date']},{t['amount']:.2f},{t['type']},\"{desc}\"")
+
+        body = '\n'.join(lines).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/csv')
+        self.send_header('Content-Length', len(body))
+        self.send_header('Content-Disposition', 'attachment; filename="transactions.csv"')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(body)
 
     def _handle_pdf(self):
         content_type = self.headers.get('Content-Type', '')
