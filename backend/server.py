@@ -41,6 +41,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             '/extract-pdf': self._handle_pdf,
             '/convert-pdf': self._handle_pdf_csv,
             '/api/v1/transactions': self._create_transaction,
+            '/api/v1/transactions/batch': self._create_transactions_batch,
         }
         handler = routes.get(path)
         if handler:
@@ -104,6 +105,33 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._json(e.status, {'error': e.message})
         except (KeyError, ValueError) as e:
             self._json(400, {'error': str(e)})
+
+    def _create_transactions_batch(self):
+        length = int(self.headers.get('Content-Length', 0))
+        body = json.loads(self.rfile.read(length)) if length else {}
+        transactions = body.get('transactions', [])
+        created = []
+        failed = []
+
+        for i, txn in enumerate(transactions):
+            try:
+                result = api.create_transaction(
+                    account_id=txn['account_id'],
+                    date=txn['date'],
+                    amount=float(txn['amount']),
+                    name=txn['name'],
+                    classification=txn['classification'],
+                    category_id=txn.get('category_id'),
+                    notes=txn.get('notes'),
+                )
+                result['client_id'] = txn.get('client_id')
+                created.append(result)
+            except APIError as e:
+                failed.append({'index': i, 'error': e.message, 'txn': txn['name']})
+            except (KeyError, ValueError) as e:
+                failed.append({'index': i, 'error': str(e), 'txn': txn.get('name', '?')})
+
+        self._json(200, {'created': created, 'failed': failed, 'total': len(transactions)})
 
     def _delete_transaction(self, txn_id):
         try:

@@ -39,13 +39,14 @@ function App() {
       }),
       e(StatsBar, { rows: txn.filtered }),
       e(Toolbar, {
-        selectedIds: txn.selIds, rows: txn.filtered, categories: cats, hasApi: accounts.length > 0,
+        selectedIds: txn.selIds, rows: txn.sorted, categories: cats, hasApi: accounts.length > 0,
         onCombine: () => txn.setShowCombine(true), onPost: () => txn.postSelected(accId),
         onRemove: txn.removeSelected, onClear: txn.clearAll, onExport: txn.exportCsv,
         onBulkCategory: txn.bulkCategory
       }),
       e(TTable, {
-        rows: txn.filtered, categories: cats, selectedIds: txn.selIds,
+        rows: txn.sorted, categories: cats, selectedIds: txn.selIds,
+        sort: txn.sort, onSort: txn.toggleSort,
         onToggle: txn.toggleRow, onToggleAll: txn.toggleAll, onUpdate: txn.updateRow
       })
     ),

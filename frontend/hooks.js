@@ -47,18 +47,36 @@ function useTransactions(toast) {
   const [nid, setNid] = useState(1);
   const [selIds, setSelIds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [posting, setPosting] = useState(false);
   const [parser, setParser] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showCombine, setShowCombine] = useState(false);
+  const [sort, setSort] = useState({ field: 'date', dir: 'asc' });
 
-  // Visible = not combined away, filtered = date range
+  // Visible = not combined away
   const visible = rows.filter(r => !r.combined);
+
+  // Filtered = date range
   const filtered = visible.filter(r => {
     if (dateFrom && r.date < dateFrom) return false;
     if (dateTo && r.date > dateTo) return false;
     return true;
   });
+
+  // Sorted
+  const sorted = [...filtered].sort((a, b) => {
+    let va = a[sort.field], vb = b[sort.field];
+    if (sort.field === 'amount') { va = a.type === 'income' ? -a.amount : a.amount; vb = b.type === 'income' ? -b.amount : b.amount; }
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb || '').toLowerCase(); }
+    if (va < vb) return sort.dir === 'asc' ? -1 : 1;
+    if (va > vb) return sort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  function toggleSort(field) {
+    setSort(p => p.field === field ? { field, dir: p.dir === 'asc' ? 'desc' : 'asc' } : { field, dir: 'asc' });
+  }
 
   // === Upload ===
   function handleFiles(files) {
@@ -105,7 +123,7 @@ function useTransactions(toast) {
   }
 
   function toggleAll() {
-    setSelIds(p => p.length === filtered.length ? [] : filtered.map(r => r.id));
+    setSelIds(p => p.length === sorted.length ? [] : sorted.map(r => r.id));
   }
 
   // === Combine ===
@@ -133,42 +151,39 @@ function useTransactions(toast) {
     toast(`Updated ${selIds.length} rows`, 'success');
   }
 
-  // === Post ===
+  // === Batch post ===
   function postSelected(accId) {
     const sel = rows.filter(r => selIds.includes(r.id) && !r.posted);
     if (!sel.length) return;
     if (!accId) { toast('Select account first', 'error'); return; }
 
-    let ok = 0, fail = 0;
-    const promises = sel.map(r =>
-      fetch('/api/v1/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transaction: {
-            account_id: accId, date: r.date, amount: r.amount.toFixed(2),
-            name: r.name || r.desc, classification: r.type,
-            category_id: r.category || undefined, notes: r.notes || undefined
-          }
-        })
-      }).then(resp => {
-        if (resp.ok) {
-          setRows(p => p.map(x => x.id === r.id ? { ...x, posted: true } : x));
-          ok++;
-        } else {
-          return resp.json().then(er => { toast(`${r.desc}: ${er.error || resp.status}`, 'error'); fail++; });
-        }
-      }).catch(e => { toast(`${r.desc}: ${e.message}`, 'error'); fail++; })
-    );
+    setPosting(true);
+    const transactions = sel.map(r => ({
+      account_id: accId, date: r.date, amount: r.amount.toFixed(2),
+      name: r.name || r.desc, classification: r.type,
+      category_id: r.category || undefined, notes: r.notes || undefined
+    }));
 
-    Promise.all(promises).then(() => {
-      toast(`Posted ${ok} transactions${fail ? `, ${fail} failed` : ''}`, ok ? 'success' : 'error');
-    });
+    fetch('/api/v1/transactions/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactions })
+    })
+      .then(r => r.json())
+      .then(d => {
+        const okIds = new Set((d.created || []).map(t => t.client_id).filter(Boolean));
+        setRows(p => p.map(r => okIds.has(r.id) ? { ...r, posted: true } : r));
+        const ok = okIds.size;
+        const fail = sel.length - ok;
+        toast(`Posted ${ok} transactions${fail ? `, ${fail} failed` : ''}`, ok ? 'success' : 'error');
+      })
+      .catch(e => toast('Batch post failed: ' + e.message, 'error'))
+      .finally(() => setPosting(false));
   }
 
   // === Export ===
   function exportCsv() {
-    const data = filtered.length ? filtered : visible;
+    const data = sorted.length ? sorted : visible;
     if (!data.length) { toast('Nothing to export', 'error'); return; }
     const lines = ['Date,Amount,Type,Description,Category,Notes'];
     data.forEach(r => {
@@ -196,7 +211,8 @@ function useTransactions(toast) {
   }
 
   return {
-    rows, visible, filtered, selIds, loading, parser, setParser,
+    rows, visible, sorted, selIds, loading, posting, parser, setParser,
+    sort, toggleSort,
     dateFrom, setDateFrom, dateTo, setDateTo,
     showCombine, setShowCombine,
     handleFiles, updateRow, toggleRow, toggleAll,

@@ -283,27 +283,49 @@ function TRow({ r, categories, selected, onToggle, onUpdate }) {
   );
 }
 
-// === TransactionTable ===
-function TTable({ rows, categories, selectedIds, onToggle, onToggleAll, onUpdate }) {
+// === SortableHeader ===
+function SortHeader({ label, field, sort, onSort, align }) {
+  const active = sort.field === field;
+  const arrow = active ? (sort.dir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+  const cls = `text-xs font-medium uppercase tracking-wider cursor-pointer select-none hover:text-base-content ${active ? 'text-base-content' : 'text-base-content/40'} ${align === 'right' ? 'text-right' : ''}`;
+  return e('th', { className: cls, onClick: () => onSort(field) }, label + arrow);
+}
+
+// === VirtualTable ===
+const ROW_H = 37;
+function TTable({ rows, categories, selectedIds, sort, onSort, onToggle, onToggleAll, onUpdate }) {
   if (!rows.length) return null;
   const all = rows.length > 0 && selectedIds.length === rows.length;
+  const [scrollTop, setScrollTop] = useState(0);
+  const containerH = 480;
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_H) - 5);
+  const endIdx = Math.min(rows.length, Math.ceil((scrollTop + containerH) / ROW_H) + 5);
+  const visibleRows = rows.slice(startIdx, endIdx);
 
   return e('div', { className: 'bg-base-100 rounded-xl border border-base-300/50 overflow-hidden animate-fade-in' },
-    e('div', { className: 'overflow-x-auto max-h-[50vh]' },
+    e('div', {
+      className: 'overflow-x-auto overflow-y-auto',
+      style: { maxHeight: containerH + 'px' },
+      onScroll: ev => setScrollTop(ev.currentTarget.scrollTop)
+    },
       e('table', { className: 'table table-sm' },
         e('thead', { className: 'sticky top-0 z-10' },
           e('tr', { className: 'bg-base-100 border-b border-base-300/50' },
             e('th', { className: 'w-[40px]' }, e('input', { type: 'checkbox', checked: all, onChange: onToggleAll, className: 'checkbox checkbox-xs checkbox-primary' })),
-            e('th', { className: 'text-xs font-medium text-base-content/40 uppercase tracking-wider' }, 'Date'),
-            e('th', { className: 'text-xs font-medium text-base-content/40 uppercase tracking-wider text-right' }, 'Amount'),
-            e('th', { className: 'text-xs font-medium text-base-content/40 uppercase tracking-wider' }, 'Description'),
+            e(SortHeader, { label: 'Date', field: 'date', sort, onSort }),
+            e(SortHeader, { label: 'Amount', field: 'amount', sort, onSort, align: 'right' }),
+            e(SortHeader, { label: 'Description', field: 'desc', sort, onSort }),
             e('th', { className: 'text-xs font-medium text-base-content/40 uppercase tracking-wider' }, 'Category'),
             e('th', { className: 'text-xs font-medium text-base-content/40 uppercase tracking-wider' }, 'Notes')
           )
         ),
-        e('tbody', null, rows.map(r =>
-          e(TRow, { key: r.id, r, categories, selected: selectedIds.includes(r.id), onToggle, onUpdate })
-        ))
+        e('tbody', null,
+          startIdx > 0 && e('tr', { style: { height: startIdx * ROW_H + 'px' } }, e('td', { colSpan: 6 })),
+          visibleRows.map(r =>
+            e(TRow, { key: r.id, r, categories, selected: selectedIds.includes(r.id), onToggle, onUpdate })
+          ),
+          endIdx < rows.length && e('tr', { style: { height: (rows.length - endIdx) * ROW_H + 'px' } }, e('td', { colSpan: 6 }))
+        )
       )
     )
   );
