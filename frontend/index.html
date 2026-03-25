@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="winter">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TnG Importer</title>
+<link href="https://cdn.jsdelivr.net/npm/daisyui/dist/full.css" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+        'slide-down': 'slideDown 0.2s ease-out',
+      },
+      keyframes: {
+        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+        slideUp: { '0%': { opacity: '0', transform: 'translateY(12px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+        slideDown: { '0%': { opacity: '0', transform: 'translateY(-8px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+      },
+    }
+  }
+};
+const e = React.createElement;
+const { useState, useEffect, useCallback } = React;
+const THEMES = ['abyss','acid','autumn','black','bumblebee','business','caramellatte','coffee','corporate','cupcake','cyberpunk','dark','dim','dracula','emerald','fantasy','forest','garden','halloween','lemonade','light','lofi','luxury','night','nord','pastel','retro','silk','sunset','synthwave','valentine','winter','wireframe'].sort();
+</script>
+<style>
+  * { scrollbar-width: thin; scrollbar-color: #374151 transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+  tr { transition: background 0.1s; }
+</style>
+</head>
+<body class="font-sans min-h-screen bg-base-300 text-base-content antialiased">
+<div id="root"></div>
+<script src="components.js"></script>
+<script src="hooks.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
