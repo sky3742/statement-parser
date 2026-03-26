@@ -41,6 +41,8 @@ python3 convert.py --list
 
 ### HTTP API
 
+#### PDF Extraction
+
 ```bash
 # Extract transactions as JSON
 curl -F "files=@statement.pdf" http://localhost:8765/extract-pdf
@@ -53,6 +55,34 @@ curl -F "files=@statement.pdf" "http://localhost:8765/extract-pdf?parser=tng"
 
 # List parsers
 curl http://localhost:8765/api/parsers
+```
+
+#### Maybe/Sure API Proxy
+
+Requires `API_URL` and `API_KEY` in `.env`.
+
+```bash
+# List accounts
+curl http://localhost:8765/api/v1/accounts
+
+# List categories
+curl http://localhost:8765/api/v1/categories
+
+# Get transactions (with optional query params)
+curl "http://localhost:8765/api/v1/transactions?account_id=xxx&per_page=100&page=1"
+
+# Create transaction
+curl -X POST http://localhost:8765/api/v1/transactions \
+  -H "Content-Type: application/json" \
+  -d '{"transaction": {"account_id": "xxx", "date": "2026-01-15", "amount": 50.00, "name": "Groceries", "classification": "expense", "category_id": "yyy"}}'
+
+# Batch create transactions
+curl -X POST http://localhost:8765/api/v1/transactions/batch \
+  -H "Content-Type: application/json" \
+  -d '{"transactions": [{"account_id": "xxx", "date": "2026-01-15", "amount": 50.00, "name": "Groceries", "classification": "expense"}]}'
+
+# Delete transaction
+curl -X DELETE http://localhost:8765/api/v1/transactions/<txn_id>
 ```
 
 ## Adding a New Bank Parser
@@ -76,6 +106,77 @@ class MaybankParser(StatementParser):
 ```
 
 The parser is auto-discovered on startup.
+
+## Using a Different Finance API
+
+The project uses an adapter pattern — implement the `FinanceAPI` abstract class to connect any finance app.
+
+### 1. Create an adapter
+
+Create `backend/api/myapp.py`:
+
+```python
+import json
+import urllib.request
+import urllib.error
+
+from .base import FinanceAPI
+
+
+class MyAppAPI(FinanceAPI):
+
+    def __init__(self, base_url, api_key):
+        self.base_url = base_url.rstrip('/')
+        self.api_key = api_key
+
+    def _request(self, path, method='GET', body=None):
+        # Implement your HTTP helper (auth headers, error handling, etc.)
+        ...
+
+    def get_accounts(self):
+        # Return list of {id, name, balance, currency, classification, account_type}
+        ...
+
+    def get_categories(self):
+        # Return list of {id, name, classification}
+        ...
+
+    def get_transactions(self, account_id, per_page=100, page=1):
+        # Return {transactions: [...], pagination: {...}}
+        ...
+
+    def create_transaction(self, account_id, date, amount, name,
+                           classification, category_id=None, notes=None):
+        # Create a transaction. Return created transaction dict.
+        ...
+
+    def delete_transaction(self, transaction_id):
+        # Delete a transaction. Return True on success.
+        ...
+```
+
+### 2. Register it
+
+Update `backend/api/__init__.py`:
+
+```python
+from .base import FinanceAPI
+from .myapp import MyAppAPI, APIError
+
+__all__ = ['FinanceAPI', 'MyAppAPI', 'APIError']
+```
+
+### 3. Wire it up
+
+Update the instantiation in `backend/server.py`:
+
+```python
+from .api import MyAppAPI, APIError
+
+api = MyAppAPI(config.API_URL, config.API_KEY) if config.API_URL and config.API_KEY else None
+```
+
+That's it — the server routes and frontend don't need changes.
 
 ## Project Structure
 
@@ -114,3 +215,5 @@ API_URL=https://your-instance.ts.net
 API_KEY=your-api-key
 PORT=8765
 ```
+
+`API_URL` and `API_KEY` are optional — without them the app runs in CSV-only mode (PDF extraction + CSV export, no posting to Maybe/Sure).
