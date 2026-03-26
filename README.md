@@ -85,6 +85,50 @@ curl -X POST http://localhost:8765/api/v1/transactions/batch \
 curl -X DELETE http://localhost:8765/api/v1/transactions/<txn_id>
 ```
 
+### MCP Server
+
+Exposes the same functionality as [MCP tools](https://modelcontextprotocol.io) for use with Claude Desktop, Cursor, or other MCP clients. Requires Python 3.10+.
+
+```bash
+pip3 install "mcp[cli]"
+
+# Test with MCP Inspector
+mcp dev mcp_server.py
+
+# Or run directly (stdio transport)
+python3 mcp_server.py
+```
+
+#### Claude Desktop config
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "statement-importer": {
+      "command": "python3",
+      "args": ["/absolute/path/to/mcp_server.py"],
+      "env": {
+        "API_URL": "https://your-instance.ts.net",
+        "API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+#### Available tools
+
+| Tool | Description |
+|---|---|
+| `list_parsers_tool` | List available PDF statement parsers |
+| `extract_pdf` | Extract transactions from a bank statement PDF |
+| `list_accounts` | List accounts from the finance API |
+| `list_categories` | List categories from the finance API |
+| `create_transaction` | Create a single transaction |
+| `batch_create_transactions` | Batch create transactions |
+
 ## Adding a New Bank Parser
 
 Create `backend/parsers/<bank>.py`:
@@ -185,6 +229,7 @@ reconciler/
 ├── .env                    # API credentials (gitignored)
 ├── run.py                  # Web server entry point
 ├── convert.py              # CLI PDF to CSV converter
+├── mcp_server.py           # MCP server (stdio transport)
 ├── backend/
 │   ├── config.py           # .env loading
 │   ├── pdf.py              # PDF extraction dispatcher
@@ -204,8 +249,9 @@ reconciler/
 
 ## Dependencies
 
-- Python 3.9+
+- Python 3.9+ (3.10+ for MCP server)
 - `pdfplumber` — `pip3 install pdfplumber`
+- `mcp` — `pip3 install "mcp[cli]"` (optional, for MCP server)
 - Browser — no build tools needed (React, Tailwind, DaisyUI loaded from CDN)
 
 ## .env
